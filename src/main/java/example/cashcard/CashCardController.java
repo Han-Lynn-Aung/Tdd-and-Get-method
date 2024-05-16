@@ -1,24 +1,29 @@
 package example.cashcard;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.Optional;
+
 @RestController
 @RequestMapping("/cashcards")
-public class CashCardController {
+class CashCardController {
 
-    @GetMapping("/{id}")
-    private ResponseEntity<CashCard> findById(@PathVariable Long id) {
+    @Autowired
+    private CashCardRepository cashCardRepository;
 
-        if (id == 99L) {
 
-            CashCard cashCard = new CashCard(99L, 123.45);
-            return ResponseEntity.ok(cashCard);
-        }
-        else {
+    @GetMapping("/{requestedId}")
+    private ResponseEntity<CashCard> findById(@PathVariable Long requestedId) {
+        Optional<CashCard> cashCardOptional = cashCardRepository.findById(requestedId);
+        System.out.println(cashCardOptional);
+        if (cashCardOptional.isPresent()) {
+            return ResponseEntity.ok(cashCardOptional.get());
+        } else {
             return ResponseEntity.notFound().build();
         }
     }
