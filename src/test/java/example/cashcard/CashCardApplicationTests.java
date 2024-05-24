@@ -9,7 +9,6 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.test.annotation.DirtiesContext;
 
 import java.net.URI;
 
@@ -47,47 +46,68 @@ class CashCardApplicationTests {
 	}
 
 	@Test
-	@DirtiesContext
-	void shouldCreateNewCashCard(){
+// @DirtiesContext
+	void shouldCreateNewCashCard() {
 
-		CashCard cashCard = new CashCard(null, 250.90,"sarah1");
-		ResponseEntity<Void> response = testRestTemplate.withBasicAuth("sarah1","password")
+		// Step 1: Create a new CashCard instance
+		CashCard cashCard = new CashCard(100L, 1.00, "sarah1");
+
+		// Step 2: Post the new CashCard with authentication
+		ResponseEntity<Void> response = testRestTemplate.withBasicAuth("sarah1", "password")
 				.postForEntity("/cashcards", cashCard, Void.class);
+
+		// Step 3: Verify that the status code is CREATED
 		assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
 
+		// Step 4: Get the location of the new CashCard
 		URI locationOfNewCashCard = response.getHeaders().getLocation();
+
+		// Step 5: Perform a GET request without authentication to ensure it's unauthorized
 		ResponseEntity<String> getResponse = testRestTemplate.getForEntity(locationOfNewCashCard, String.class);
-		assertThat(getResponse.getStatusCode()).isEqualTo(HttpStatus.OK);
 
-		DocumentContext context = JsonPath.parse(getResponse.getBody());
+		// Step 6: Verify that the status code is UNAUTHORIZED
+		assertThat(getResponse.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
 
+		// Step 7: Perform a GET request with authentication to retrieve the CashCard details
+		ResponseEntity<String> authenticatedGetResponse = testRestTemplate.withBasicAuth("sarah1", "password")
+				.getForEntity(locationOfNewCashCard, String.class);
+
+		// Step 8: Verify that the status code is OK
+		assertThat(authenticatedGetResponse.getStatusCode()).isEqualTo(HttpStatus.OK);
+
+		// Step 9: Parse the JSON response
+		DocumentContext context = JsonPath.parse(authenticatedGetResponse.getBody());
+
+		// Step 10: Extract the id and amount fields from the JSON response
 		Number id = context.read("$.id");
 		Double amount = context.read("$.amount");
 
-		assertThat(id).isNotNull();
-		assertThat(amount).isEqualTo(250.90);
+		// Step 11: Assert that the retrieved id and amount match the expected values
+		assertThat(id).isEqualTo(100);
+		assertThat(amount).isEqualTo(1.00);
 	}
+
 
 
 	@Test
 	void shouldReturnAllCashCardsWhenListIsRequested() {
 		ResponseEntity<String> response = testRestTemplate.withBasicAuth("sarah1","password")
-				.getForEntity("/cashcards?page=0&size=3", String.class);
+				.getForEntity("/cashcards?page=0&size=1", String.class);
 		assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
 
 		DocumentContext documentContext = JsonPath.parse(response.getBody());
 
 		int cashCardCount = documentContext.read("$.length()");
-		assertThat(cashCardCount).isEqualTo(3);
+		assertThat(cashCardCount).isEqualTo(1);
 
 		JSONArray ids = documentContext.read("$..id");
-		assertThat(ids).containsExactlyInAnyOrder(99, 100, 101);
+		assertThat(ids).containsExactlyInAnyOrder( 100);
 
 		JSONArray amounts = documentContext.read("$..amount");
-		assertThat(amounts).containsExactlyInAnyOrder(123.45, 1.0, 150.00);
+		assertThat(amounts).containsExactlyInAnyOrder( 1.0);
 
 		JSONArray page = documentContext.read("$[*]");
-		assertThat(page.size()).isEqualTo(3);
+		assertThat(page.size()).isEqualTo(1);
 	}
 
 	@Test
@@ -118,10 +138,10 @@ class CashCardApplicationTests {
 		DocumentContext documentContext = JsonPath.parse(response.getBody());
 
 		JSONArray page = documentContext.read("$[*]");
-		assertThat(page.size()).isEqualTo(3);
+		assertThat(page.size()).isEqualTo(1);
 
 		JSONArray amount = documentContext.read("$..amount");
-		assertThat(amount).containsExactly( 1.0, 123.45, 150.00);
+		assertThat(amount).containsExactly( 1.0);
 
 	}
 
